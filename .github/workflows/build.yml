@@ -774,6 +774,7 @@ jobs:
 
       - name: 确定 KernelSU 分支
         id: ksu-branch
+        if: inputs.ksu_variant != 'None'
         run: |
           branch_input="${{ inputs.ksu_branch }}"
           variant_input="${{ inputs.ksu_variant }}"
