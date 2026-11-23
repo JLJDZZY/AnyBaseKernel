@@ -1375,7 +1375,7 @@ index 0000000..4729b79
 \ No newline at end of file
 diff --git a/drivers/block/zram/lz4p/lz4p_decompress.c b/drivers/block/zram/lz4p/lz4p_decompress.c
 new file mode 100644
-index 0000000..33c3dd9
+index 0000000..5a452c6
 --- /dev/null
 +++ b/drivers/block/zram/lz4p/lz4p_decompress.c
 @@ -0,0 +1,933 @@
@@ -1831,7 +1831,7 @@ index 0000000..33c3dd9
 +
 +	/* Go fast if we can, keeping away from the end of buffers */
 +	if (outputSize > LZ4_FAST_MARGIN && inputSize > LZ4_FAST_MARGIN &&
-+		accel && lz4_decompress_accel_enable()) {
++		accel && lz4p_decompress_accel_enable()) {
 +		ret = lz4_decompress_asm(&dstPtr, dest,
 +					dest + outputSize - LZ4_FAST_MARGIN,
 +					&srcPtr,
@@ -2314,7 +2314,7 @@ index 0000000..33c3dd9
 +#endif
 diff --git a/drivers/block/zram/lz4p/lz4p_decompress.h b/drivers/block/zram/lz4p/lz4p_decompress.h
 new file mode 100644
-index 0000000..cdef675
+index 0000000..e4f90c2
 --- /dev/null
 +++ b/drivers/block/zram/lz4p/lz4p_decompress.h
 @@ -0,0 +1,28 @@
@@ -2337,7 +2337,7 @@ index 0000000..cdef675
 +#include <asm/neon.h>
 +#include <asm/cputype.h>
 +
-+static inline int lz4_decompress_accel_enable(void)
++static inline int lz4p_decompress_accel_enable(void)
 +{
 +	return may_use_simd();
 +}
