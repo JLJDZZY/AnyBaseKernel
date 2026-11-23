@@ -1932,6 +1932,32 @@ jobs:
 
           ensure_line_once "$XIAOMI_SYMBOL_LIST" "device_find_any_child"
 
+      - name: 移植 XRING LZ4P 压缩算法
+        if: ${{ inputs.kernel_version == '6.1' }}
+        working-directory: ${{ env.KERNEL_ROOT }}/common
+        run: |
+          PATCH_FILE="$GITHUB_WORKSPACE/patches/zram/0001-zram-add-lz4p.patch"
+          if [ ! -f "$PATCH_FILE" ]; then
+            echo "::error::缺少补丁文件: $PATCH_FILE"
+            exit 1
+          fi
+
+          if grep -q 'config ZRAM_LZ4P' drivers/block/zram/Kconfig 2>/dev/null; then
+            echo "LZ4P 已存在，跳过。"
+            exit 0
+          fi
+
+          if git apply --check "$PATCH_FILE" 2>/dev/null; then
+            git apply "$PATCH_FILE"
+            echo "已应用 XRING LZ4P 补丁（git apply）。"
+          elif patch -p1 --dry-run --forward -F3 < "$PATCH_FILE" >/dev/null 2>&1; then
+            patch -p1 --forward -F3 < "$PATCH_FILE"
+            echo "已应用 XRING LZ4P 补丁（patch -F3）。"
+          else
+            echo "::error::LZ4P 补丁无法应用，基线 zram 代码可能已变化，请更新 $PATCH_FILE"
+            exit 1
+          fi
+
       - name: 配置 ZRAM 选项
         if: ${{ inputs.use_zram && inputs.kernel_version != '6.12' }}
         run: |
@@ -1959,6 +1985,13 @@ jobs:
           if [ "${{ inputs.kernel_version }}" = "6.6" ]; then
             echo "CONFIG_ZSMALLOC=y" >> "$CONFIG_FILE"
             sed -i 's/CONFIG_ZRAM=m/CONFIG_ZRAM=y/g' "$CONFIG_FILE"
+          fi
+
+          # 6.1: XRING LZ4P 压缩算法 + zram writeback（内存扩展 / extm 依赖）
+          if [ "${{ inputs.kernel_version }}" = "6.1" ]; then
+            grep -q '^CONFIG_ZRAM_LZ4P=y' "$CONFIG_FILE" || echo "CONFIG_ZRAM_LZ4P=y" >> "$CONFIG_FILE"
+            sed -i 's/^# CONFIG_ZRAM_WRITEBACK is not set/CONFIG_ZRAM_WRITEBACK=y/' "$CONFIG_FILE"
+            grep -q '^CONFIG_ZRAM_WRITEBACK=y' "$CONFIG_FILE" || echo "CONFIG_ZRAM_WRITEBACK=y" >> "$CONFIG_FILE"
           fi
 
           if [ "${{ inputs.android_version }}" = "android14" ] || [ "${{ inputs.android_version }}" = "android15" ]; then
