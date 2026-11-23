@@ -3309,6 +3309,21 @@ jobs:
           cd $ANYKERNEL3
           ZIP_NAME="${{ inputs.android_version }}-${{ inputs.kernel_version }}.${{ inputs.sub_level }}-${{ inputs.os_patch_level }}-AnyKernel3.zip"
           mv ../Image ./Image
+
+          # 注入 EROFS 保留缓冲池参数（仅当内核源码包含该模块参数时生效）
+          if grep -q 'module_param_named(reserved_pages' "$KERNEL_ROOT/common/fs/erofs/zutil.c" 2>/dev/null; then
+            if grep -q 'erofs.reserved_pages' anykernel.sh; then
+              echo "anykernel.sh 已包含 erofs.reserved_pages，跳过注入"
+            elif grep -q '^flash_boot' anykernel.sh; then
+              sed -i 's|^flash_boot|patch_cmdline "erofs.reserved_pages" "erofs.reserved_pages=64"\nflash_boot|' anykernel.sh
+              echo "已注入 erofs.reserved_pages=64（写入 boot.img cmdline）"
+            else
+              echo "::warning::anykernel.sh 中未找到 flash_boot 行，未能注入 erofs.reserved_pages"
+            fi
+          else
+            echo "当前内核不支持 erofs.reserved_pages，跳过"
+          fi
+
           zip -r "../$ZIP_NAME" ./*
 
       - name: 构建 Boot 镜像 (Android 12)
