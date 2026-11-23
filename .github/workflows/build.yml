@@ -3013,6 +3013,35 @@ jobs:
 
           echo "ABK Control 管理器桥接校验通过。"
 
+      - name: 回退 DRM valid-clones 检查（修复 6.1.141+ 闪屏）
+        if: ${{ inputs.android_version == 'android14' && inputs.kernel_version == '6.1' }}
+        working-directory: ${{ env.KERNEL_ROOT }}/common
+        run: |
+          PATCH_FILE="$GITHUB_WORKSPACE/patches/drm/0001-Revert-drm-Add-valid-clones-check.patch"
+          TARGET="drivers/gpu/drm/drm_atomic_helper.c"
+
+          if [ ! -f "$PATCH_FILE" ]; then
+            echo "::error::缺少补丁文件: $PATCH_FILE"
+            exit 1
+          fi
+
+          # 6.1.140 及更早的基线没有这段检查，直接跳过
+          if [ ! -f "$TARGET" ] || ! grep -q 'drm_atomic_check_valid_clones' "$TARGET"; then
+            echo "当前源码不含 DRM valid-clones 检查（基线 < 6.1.141），跳过。"
+            exit 0
+          fi
+
+          if git apply --check "$PATCH_FILE" 2>/dev/null; then
+            git apply "$PATCH_FILE"
+            echo "已回退 DRM valid-clones 检查（修复 vendor 显示栈闪屏）。"
+          elif patch -p1 --dry-run --forward -F3 < "$PATCH_FILE" >/dev/null 2>&1; then
+            patch -p1 --forward -F3 < "$PATCH_FILE"
+            echo "已通过 patch 回退 DRM valid-clones 检查（修复 vendor 显示栈闪屏）。"
+          else
+            echo "::error::DRM valid-clones 回退补丁无法应用，基线文件可能已变化，请更新 $PATCH_FILE"
+            exit 1
+          fi
+
       - name: 编译内核
         uses: nick-fields/retry@v4
         with:
